@@ -64,3 +64,43 @@ def chunk_steps(steps: List[Tuple[int, str]]):
         i += (WINDOW_STEPS - OVERLAP_STEPS) if WINDOW_STEPS > OVERLAP_STEPS else 1
     return chunks
 
+def load_json()-> List[Dict]:
+    result = []
+    for file in sorted(glob.glob(DATA_DIR / "*.json")):
+        try:
+            with open(file, encoding="utf-8", errors="ignore") as jsonfile:
+                object = json.load(jsonfile)
+        except Exception as e:
+            print(f"error with json file {file}: {e}")
+            continue
+        raw_recipe = object.get("recipe_id") or Path(file).stem
+        recipe_name = get_title(raw_recipe)
+        raw_steps = raw_to_steps(object)
+        chunked_steps = chunk_steps(raw_steps)
+        for start, end, content in chunked_steps:
+            result.append({
+                "recipe_id": raw_recipe,
+                "recipe_name": recipe_name,
+                "start_step": start,
+                "end_step": end,
+                "content": content
+            })
+    return result
+
+def encode(load: List[str], tokenizer, model, device):
+    embeddings, batch_size = [], 32
+    for i in range(0, len(load), batch_size):
+        #e5 embeddings require passages to be labeled passage
+        batch = [f"passage: {p}" for p in load[i:i+batch_size]]
+        #step 1: encode each passage in batch, here we are truncating down to 512, and padding up to 512, and returning as pytorch tensors
+        encoded = tokenizer(batch, padding=True, truncation=True, max_length=512, return_tensors="pt").to(device)
+        #step 2: run tokenized tensors through model; 
+        model_output = model(**encoded).last_hidden_state
+        #step 3: get the attention_mask, and add 1 dimension so it works with model_output
+        attention = encoded["attention_mask"].unsqueeze(-1)
+        #creating one vector per passage, then normalize
+        #here, we turn each passage into one single vector, and make sure we are ignoring the attention mask 0s
+        pooled = (model_output * attention).sum(1) / attention.sum(1).clamp(min=1e-9)
+        # then, scale each vector/passage down to standardize
+        pooled = torch.nn.functional.normalize(pooled, p=2, dim=1)
+        
