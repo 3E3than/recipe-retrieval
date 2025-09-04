@@ -1,1 +1,3 @@
-*.json
+/data/raw
+/.venv
+*.pyc

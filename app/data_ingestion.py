@@ -66,7 +66,7 @@ def chunk_steps(steps: List[Tuple[int, str]]):
 
 def load_json()-> List[Dict]:
     result = []
-    for file in sorted(glob.glob(DATA_DIR / "*.json")):
+    for file in sorted(sorted((DATA_DIR).glob("*.json"))):
         try:
             with open(file, encoding="utf-8", errors="ignore") as jsonfile:
                 object = json.load(jsonfile)
@@ -87,6 +87,7 @@ def load_json()-> List[Dict]:
             })
     return result
 
+@torch.inference_mode()
 def encode(load: List[str], tokenizer, model, device):
     embeddings, batch_size = [], 32
     for i in range(0, len(load), batch_size):
@@ -103,4 +104,41 @@ def encode(load: List[str], tokenizer, model, device):
         pooled = (model_output * attention).sum(1) / attention.sum(1).clamp(min=1e-9)
         # then, scale each vector/passage down to standardize
         pooled = torch.nn.functional.normalize(pooled, p=2, dim=1)
-        
+        embeddings.append(pooled.cpu().numpy())
+    return np.vstack(embeddings).astype("float32")
+
+def main():
+    os.makedirs(INDEX_DIR, exist_ok=True)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    tok = AutoTokenizer.from_pretrained(EMBED_MODEL)
+    model = AutoModel.from_pretrained(EMBED_MODEL).to(device).eval()
+
+    #load the json data into chunks of text and metadata
+    records = load_json()
+
+    if not records:
+        raise SystemError("no data found/able to be parsed")
+    
+    #text only
+    content = [r["content"]for r in records]
+
+    #encode/vectorize content
+    X = encode(content, tok, model, device)
+
+    # specify shape, then create FAISS index for that dimension
+    dim = X.shape[1]
+    index = faiss.IndexFlatIP(dim)  # cosine via normalized vectors
+    index.add(X)
+
+    # stor in index dir
+    faiss.write_index(index, str(INDEX_DIR / "e5.index"))
+    # dump metadata so index[i] has metadata[i]
+    with open(META_PATH, "w", encoding="utf-8") as f:
+        json.dump({"model": EMBED_MODEL, "records": records}, f, ensure_ascii=False)
+
+    print(f"✅ Built index with {len(records)} chunks")
+    print(f"   → {INDEX_DIR/'e5.index'}")
+    print(f"   → {META_PATH}")
+
+if __name__ == "__main__":
+    main()
