@@ -17,6 +17,8 @@ It supports **procedural queries** (e.g., *"How long to cook steak?"*, *"When sh
 ---
 
 ## 🗂 Project Structure
+
+```text
 recipe-search-api/
 │
 ├── app/
@@ -37,9 +39,7 @@ recipe-search-api/
 ├── requirements.txt
 ├── Dockerfile
 └── README.md
-
-yaml
-Copy code
+```
 
 ---
 
@@ -47,7 +47,7 @@ Copy code
 
 1. **Clone the repo**
    ```bash
-   git clone https://github.com/<your-username>/recipe-search-api.git
+   git clone https://github.com/3E3than/recipe-search-api.git
    cd recipe-search-api
    ```
 
@@ -60,6 +60,7 @@ Copy code
     ```
 3. **Add recipe data**
     Unzip the file and place all JSON recipe files into data/raw/
+    ```bash
     Each JSON should contain:
     {
     "recipe_id": "delicious-coconut-truffles",
@@ -68,6 +69,7 @@ Copy code
         { "id": 2, "title": "Step 2: Mix", "body": "..." }
     ]
     }
+    ```
 4. **Build the FAISS index**
     ```bash
         python -m app.ingest_json
