@@ -2,8 +2,8 @@ import os, json, glob, re
 from pathlib import Path
 from typing import List, Dict, Tuple
 import numpy as np
-import torch
 import faiss
+import torch
 from transformers import AutoTokenizer, AutoModel
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data" / "raw"
