@@ -5,7 +5,7 @@ import streamlit as st
 API_URL = "http://127.0.0.1:8000"
 
 st.set_page_config(page_title="Recipe Search", page_icon="🍲")
-st.title("🍲 Recipe Search")
+st.title("🍲 Recipe Retrieval")
 
 query = st.text_input("Enter a recipe query:", "chicken pasta")
 k = st.slider("Top-K results", 1, 20, 5)
