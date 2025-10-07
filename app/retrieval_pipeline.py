@@ -5,6 +5,8 @@ import numpy as np
 import faiss
 import torch
 from transformers import AutoTokenizer, AutoModel
+from groq import Groq
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data" / "raw"
 INDEX_DIR = ROOT / "index" / "faiss"
@@ -69,7 +71,7 @@ class retrievalService:
             })
         return (results, query_vector)
     
-    ## FROM GPT: IMPROVEMENTS ##
+    ## SUGGESTION: IMPROVEMENTS ##
     # Cross-encoder reranker (placeholder)
     # You can later plug sentence-transformers cross-encoder here if you want:
     # from sentence_transformers import CrossEncoder
@@ -78,3 +80,27 @@ class retrievalService:
     def rerank_placeholder(query: str, hits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # No-op for now; stable interface for future upgrade.
         return hits
+
+    def generate_answer(query: str, searchresult: Tuple[List, Any]):
+        chunks, vec = searchresult
+        context = "/n".join(chunks)
+        prompt = f"""
+            You are a helpful cooking assistant; answer the user's question with the given context information. Answer clearly and concisely
+
+            context:
+            {context}
+
+            user question:
+            {query}
+            """
+        try:
+            client = Groq()
+            completion = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            )
+        except Exception as e:
+            print(f"Error generating an answer: {e}")
+
+        return completion.choices[0].message.content
+
